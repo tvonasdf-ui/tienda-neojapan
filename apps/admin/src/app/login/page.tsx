@@ -20,6 +20,9 @@ export default async function LoginPage({
       ? params.next
       : '/';
   const config = getSupabasePublicConfig();
+  const demoEnabled =
+    process.env.AUTH_DEMO_BYPASS === 'true' ||
+    process.env.NEXT_PUBLIC_DEMO_BYPASS === 'true';
 
   return (
     <section className="py-12">
@@ -28,7 +31,7 @@ export default async function LoginPage({
           {LOGIN_ERRORS[params.error]}
         </p>
       ) : null}
-      <LoginForm nextPath={nextPath} configured={Boolean(config)} />
+      <LoginForm nextPath={nextPath} configured={Boolean(config)} demoEnabled={demoEnabled} />
     </section>
   );
 }

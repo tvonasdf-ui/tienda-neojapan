@@ -2,10 +2,8 @@
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import {
-  createSupabaseBrowserClient,
-  getSupabasePublicConfig,
-} from "@/lib/supabase";
+import { createSupabaseBrowserClient, getSupabasePublicConfig } from "@/lib/supabase";
+import { DEMO_COOKIE_NAME } from "@/lib/api";
 
 export function LogoutButton() {
   const router = useRouter();
@@ -18,6 +16,15 @@ export function LogoutButton() {
 
   async function logout() {
     setError(null);
+    const inDemo =
+      document.cookie.split('; ').find((part) => part.startsWith(`${DEMO_COOKIE_NAME}=`)) ===
+      `${DEMO_COOKIE_NAME}=1`;
+    document.cookie = `${DEMO_COOKIE_NAME}=; Max-Age=0; path=/`;
+    if (inDemo) {
+      router.replace("/login");
+      router.refresh();
+      return;
+    }
     const { error: signOutError } =
       await createSupabaseBrowserClient().auth.signOut();
     if (signOutError) {

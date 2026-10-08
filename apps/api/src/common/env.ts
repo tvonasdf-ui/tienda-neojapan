@@ -1,5 +1,12 @@
 import { z } from 'zod';
 
+const booleanFromEnv = z
+  .preprocess((value) => {
+    if (value === undefined || value === '') return false;
+    return value === 'true' || value === true || value === '1' || value === 1;
+  }, z.boolean())
+  .default(false);
+
 /**
  * Variable de entorno validadas al arrancar. Los valores por defecto
  * corresponden al desarrollo local (docker-compose de la app).
@@ -51,6 +58,20 @@ export const envSchema = z.object({
   ),
   WEB_REVALIDATE_URL: z.string().url().optional(),
   WEB_REVALIDATE_SECRET: z.string().min(32).optional(),
+  AUTH_DEMO_BYPASS: booleanFromEnv,
+  DEMO_STAFF_ID: z
+    .preprocess(
+      (value) => (value === '' || value === undefined ? undefined : value),
+      z.string().uuid(),
+    )
+    .default('10000000-0000-4000-8000-000000000001'),
+  DEMO_STAFF_EMAIL: z
+    .preprocess(
+      (value) => (value === '' || value === undefined ? undefined : value),
+      z.string().trim().email(),
+    )
+    .default('demo@neojapan.cl'),
+  DEMO_STAFF_ROLE: z.enum(['ADMIN', 'STAFF']).default('ADMIN'),
 }).superRefine((env, context) => {
   const cloudinaryValues = [
     env.CLOUDINARY_CLOUD_NAME,

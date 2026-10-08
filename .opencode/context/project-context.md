@@ -108,6 +108,11 @@ El orquestador agrega una entrada aquí cada vez que una tarea produce una decis
 - **M3 panel** (`apps/admin`): `/inventario` (tabla productos+stock por sucursal), `/inventario/[variantId]/movimientos` (libro + acciones ingreso/ajuste en cliente con `router.refresh()`), `/inventario/nuevo` (alta con variantes/stock inicial), `/inventario/importar` (carga CSV con reporte). Cliente de API en `src/lib/api.ts` (server `apiFetch` + client `clientApi`/`clientFormApi` sobre el proxy `/api`). En Cache Components de Next 16 la ruta dinámica se declara con `export const instant = false` (no con `dynamic`).
 **Agentes afectados**: frontend, backend, qa-tester.
 
+### [2026-10-08] Servicio técnico (Módulo repairs) + bypass demo de auth
+**Contexto**: la tienda recibe equipos a reparar; Supabase es inalcanzable desde el entorno de desarrollo local, así que sin Supabase el panel no podía consumir la API protegida y la app no resonaba end-to-end.
+**Decisión**: módulo `repairs` completo en API (`apps/api/src/repairs`) + UI `Servicio técnico` en el panel (`/reparaciones`). Para que el demo local funcione sin Supabase, se agregó un **bypass exclusivo de desarrollo**: `AUTH_DEMO_BYPASS=true` en la API (guarda deja pasar con identidad ficticia configurable `DEMO_STAFF_*`) y en el panel el botón «Entrar en modo demo» setea la cookie `neojapan_demo`. **El bypass nunca se activa en producción**: está desactivado por defecto y la validación real de JWT de Supabase se mantiene intacta.
+**Agentes afectados**: backend, frontend, qa-tester.
+
 ## 6. Glosario del dominio
 
 Términos específicos del negocio/producto que no son obvios desde el código. Evita que cada agente interprete un concepto de forma distinta.

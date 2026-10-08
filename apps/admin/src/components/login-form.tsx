@@ -4,13 +4,19 @@ import { useState, type FormEvent } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button, Card, Input } from '@neojapan/ui';
 import { createSupabaseBrowserClient } from '@/lib/supabase';
+import { DEMO_COOKIE_NAME } from '@/lib/api';
 
 interface LoginFormProps {
   nextPath: string;
   configured: boolean;
+  demoEnabled: boolean;
 }
 
-export function LoginForm({ nextPath, configured }: LoginFormProps) {
+function safeNextPath(nextPath: string): string {
+  return nextPath.startsWith('/') && !nextPath.startsWith('//') ? nextPath : '/';
+}
+
+export function LoginForm({ nextPath, configured, demoEnabled }: LoginFormProps) {
   const router = useRouter();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -44,16 +50,21 @@ export function LoginForm({ nextPath, configured }: LoginFormProps) {
         return;
       }
 
-      const safeNextPath = nextPath.startsWith('/') && !nextPath.startsWith('//')
-        ? nextPath
-        : '/';
-      router.replace(safeNextPath);
+      router.replace(safeNextPath(nextPath));
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'No se pudo iniciar sesión.');
     } finally {
       setSubmitting(false);
     }
+  }
+
+  async function enterDemo() {
+    setSubmitting(true);
+    setError(null);
+    document.cookie = `${DEMO_COOKIE_NAME}=1; path=/; max-age=43200; samesite=lax`;
+    router.replace(safeNextPath(nextPath));
+    router.refresh();
   }
 
   return (
@@ -91,6 +102,17 @@ export function LoginForm({ nextPath, configured }: LoginFormProps) {
           Entrar al panel
         </Button>
       </form>
+
+      {demoEnabled ? (
+        <div className="space-y-3 border-t border-white/[0.07] pt-4">
+          <p className="text-center text-xs text-gray-500">
+            Modo desarrollo: entra sin cuenta de Supabase.
+          </p>
+          <Button type="button" variant="secondary" onClick={enterDemo} loading={submitting} fullWidth>
+            Entrar en modo demo
+          </Button>
+        </div>
+      ) : null}
     </Card>
   );
 }

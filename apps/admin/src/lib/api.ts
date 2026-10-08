@@ -120,6 +120,11 @@ const API_BASE = (
   process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3002'
 ).replace(/\/$/, '');
 
+/** Modo demo (válido solo en desarrollo): no exige JWT de Supabase. */
+export const DEMO_BYPASS = process.env.NEXT_PUBLIC_DEMO_BYPASS === 'true';
+
+export const DEMO_COOKIE_NAME = 'neojapan_demo';
+
 export function apiUrl(path: string): string {
   return `${API_BASE}/api/v1${path}`;
 }
@@ -136,15 +141,19 @@ export class ApiError extends Error {
 
 /** Llamada autenticada desde componentes cliente a la API. */
 export async function clientApi<T>(path: string, init?: RequestInit): Promise<T> {
-  const supabase = createSupabaseBrowserClient();
-  const { data, error } = await supabase.auth.getSession();
-  if (error) {
-    throw new ApiError(401, `No se pudo leer la sesión: ${error.message}`);
+  let accessToken: string | undefined;
+  if (!DEMO_BYPASS) {
+    const supabase = createSupabaseBrowserClient();
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      throw new ApiError(401, `No se pudo leer la sesión: ${error.message}`);
+    }
+    accessToken = data.session?.access_token;
   }
   const headers = new Headers(init?.headers);
   headers.set('content-type', 'application/json');
-  if (data.session) {
-    headers.set('authorization', `Bearer ${data.session.access_token}`);
+  if (accessToken) {
+    headers.set('authorization', `Bearer ${accessToken}`);
   }
 
   const response = await fetch(apiUrl(path), {
@@ -161,14 +170,18 @@ export async function clientApi<T>(path: string, init?: RequestInit): Promise<T>
 
 /** Upload multipart desde componentes cliente, autenticado contra la API. */
 export async function clientFormApi<T>(path: string, body: FormData): Promise<T> {
-  const supabase = createSupabaseBrowserClient();
-  const { data, error } = await supabase.auth.getSession();
-  if (error) {
-    throw new ApiError(401, `No se pudo leer la sesión: ${error.message}`);
+  let accessToken: string | undefined;
+  if (!DEMO_BYPASS) {
+    const supabase = createSupabaseBrowserClient();
+    const { data, error } = await supabase.auth.getSession();
+    if (error) {
+      throw new ApiError(401, `No se pudo leer la sesión: ${error.message}`);
+    }
+    accessToken = data.session?.access_token;
   }
   const headers = new Headers();
-  if (data.session) {
-    headers.set('authorization', `Bearer ${data.session.access_token}`);
+  if (accessToken) {
+    headers.set('authorization', `Bearer ${accessToken}`);
   }
   const response = await fetch(apiUrl(path), { method: 'POST', body, headers });
 
@@ -244,3 +257,75 @@ export const LOCATION_LABELS: Record<StockLocation, string> = {
   STORE: 'Tienda',
   WAREHOUSE: 'Bodega',
 };
+
+export type RepairStatus =
+  | 'RECEIVED'
+  | 'DIAGNOSED'
+  | 'QUOTED'
+  | 'APPROVED'
+  | 'IN_REPAIR'
+  | 'READY'
+  | 'DELIVERED'
+  | 'CANCELLED'
+  | 'UNCLAIMED';
+
+export interface RepairTicket {
+  id: string;
+  code: string;
+  customerName: string;
+  customerPhone: string;
+  deviceName: string;
+  deviceModel: string | null;
+  deviceSerialNumber: string | null;
+  faultDescription: string;
+  status: RepairStatus;
+  diagnosis: string | null;
+  quoteAmount: number | null;
+  repairNotes: string | null;
+  cancellationReason: string | null;
+  createdByUserId: string | null;
+  deliveredAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RepairTicketPage {
+  items: RepairTicket[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/** Espejo de repairs-rules.ts del API (transiciones contiguas de la máquina de estados). */
+export const REPAIR_TRANSITIONS: Record<RepairStatus, RepairStatus[]> = {
+  RECEIVED: ['DIAGNOSED', 'CANCELLED'],
+  DIAGNOSED: ['QUOTED', 'CANCELLED'],
+  QUOTED: ['APPROVED', 'CANCELLED'],
+  APPROVED: ['IN_REPAIR', 'CANCELLED'],
+  IN_REPAIR: ['READY'],
+  READY: ['DELIVERED', 'UNCLAIMED'],
+  DELIVERED: [],
+  CANCELLED: [],
+  UNCLAIMED: [],
+};
+
+export const REPAIR_STATUS_LABELS: Record<RepairStatus, string> = {
+  RECEIVED: 'Recibido',
+  DIAGNOSED: 'Diagnosticado',
+  QUOTED: 'Cotizado',
+  APPROVED: 'Cotización aprobada',
+  IN_REPAIR: 'En reparación',
+  READY: 'Listo para retirar',
+  DELIVERED: 'Entregado',
+  CANCELLED: 'Cancelado',
+  UNCLAIMED: 'No retirado',
+};
+
+export const ACTIVE_REPAIR_STATUSES: RepairStatus[] = [
+  'RECEIVED',
+  'DIAGNOSED',
+  'QUOTED',
+  'APPROVED',
+  'IN_REPAIR',
+  'READY',
+];

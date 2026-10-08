@@ -2,6 +2,7 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
+  Logger,
   ServiceUnavailableException,
   UnauthorizedException,
 } from '@nestjs/common';
@@ -20,6 +21,7 @@ interface AuthenticatedRequest extends Request {
 export class SupabaseStaffGuard implements CanActivate {
   private jwks: ReturnType<typeof createRemoteJWKSet> | undefined;
   private issuer: string | undefined;
+  private readonly logger = new Logger(SupabaseStaffGuard.name);
 
   constructor(
     private readonly config: ConfigService,
@@ -28,6 +30,17 @@ export class SupabaseStaffGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+
+    if (this.demoEnabled()) {
+      request.staff = {
+        id: this.config.get<string>('DEMO_STAFF_ID') ?? '10000000-0000-4000-8000-000000000001',
+        email: this.config.get<string>('DEMO_STAFF_EMAIL') ?? 'demo@neojapan.cl',
+        role: (this.config.get<string>('DEMO_STAFF_ROLE') as StaffIdentity['role']) ?? 'ADMIN',
+      };
+      await this.ensureStaffUser(request.staff);
+      return true;
+    }
+
     const authorization = request.headers.authorization;
     const token = authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1];
     if (!token) {
@@ -60,6 +73,22 @@ export class SupabaseStaffGuard implements CanActivate {
     }
 
     const staff = staffIdentityFromClaims(claims);
+    await this.ensureStaffUser(staff);
+    request.staff = staff;
+    return true;
+  }
+
+  private demoEnabled(): boolean {
+    const enabled = this.config.get<boolean>('AUTH_DEMO_BYPASS', false);
+    if (enabled) {
+      this.logger.warn(
+        'AUTH_DEMO_BYPASS activo: autenticación de desarrollo sin Supabase. No usar en producción.',
+      );
+    }
+    return enabled;
+  }
+
+  private async ensureStaffUser(staff: StaffIdentity): Promise<void> {
     await this.prisma.user.upsert({
       where: { id: staff.id },
       create: {
@@ -73,8 +102,6 @@ export class SupabaseStaffGuard implements CanActivate {
         role: staff.role,
       },
     });
-    request.staff = staff;
-    return true;
   }
 
   private getJwks(

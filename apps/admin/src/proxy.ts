@@ -3,6 +3,13 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
 export async function proxy(request: NextRequest) {
+  const demoBypass = process.env.AUTH_DEMO_BYPASS === 'true';
+  const hasDemoSession = request.cookies.get('neojapan_demo')?.value === '1';
+
+  if (demoBypass && hasDemoSession) {
+    return NextResponse.next({ request });
+  }
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   const loginUrl = new URL('/login', request.url);
@@ -50,5 +57,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/', '/inventario/:path*', '/pos/:path*', '/pedidos/:path*', '/reportes/:path*'],
+  matcher: ['/', '/inventario/:path*', '/pos/:path*', '/pedidos/:path*', '/reparaciones/:path*', '/reportes/:path*'],
 };

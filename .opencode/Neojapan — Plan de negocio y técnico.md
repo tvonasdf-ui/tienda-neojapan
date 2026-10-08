@@ -388,6 +388,7 @@ neojapan/
 ### 5.2 Seguridad
 
 - Roles y permisos verificados en la API (nunca solo en el frontend), `proxy.ts` solo como primera barrera.
+- **Bypass de desarrollo** (`AUTH_DEMO_BYPASS`): solo para demos locales sin Supabase; el guard deja pasar con una identidad ficticia y loguea un warning. Por defecto está desactivado y **nunca debe activarse en producción** (el entorno productivo valida JWT contra las claves reales de Supabase).
 - Rate limiting en login, carrito y envío de pedidos; CSRF en acciones con cookies.
 - Límite de solicitudes por IP y teléfono para evitar spam de pedidos; webhooks de pago firmados e idempotentes cuando se active la pasarela.
 - Secretos en variables de entorno gestionadas, rotación documentada.

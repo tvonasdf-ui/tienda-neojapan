@@ -10,7 +10,8 @@ const navItems = [
   { href: "/inventario", label: "Inventario", number: "02" },
   { href: "/pos", label: "Punto de venta", number: "03" },
   { href: "/pedidos", label: "Pedidos", number: "04" },
-  { href: "/reportes", label: "Reportes", number: "05" },
+  { href: "/reparaciones", label: "Servicio técnico", number: "05" },
+  { href: "/reportes", label: "Reportes", number: "06" },
 ] as const;
 
 function Navigation({
