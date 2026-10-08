@@ -6,6 +6,7 @@ import {
   PaymentMethod,
   PaymentStatus,
   ProductStatus,
+  RepairStatus,
   SaleChannel,
   SaleStatus,
   StockLocation,
@@ -13,6 +14,7 @@ import {
   id,
   money,
   quantity,
+  repairCode,
   shortCode,
   sku,
   slug,
@@ -195,3 +197,29 @@ export const itemUnitSchema = z.object({
   createdAt: z.string().datetime({ offset: true }).optional(),
 });
 export type ItemUnit = z.infer<typeof itemUnitSchema>;
+
+/**
+ * Ticket de servicio técnico (plan §4.8): recepción de un equipo del cliente,
+ * diagnóstico, cotización, reparación, entrega y casos de cierre. El equipo en
+ * custodia NO es inventario propio: nunca descuenta en `stock_levels` (a
+ * diferencia de lo planificado para el uso de repuestos cuando se implemente).
+ */
+export const repairTicketSchema = z.object({
+  id,
+  code: repairCode,
+  customerName: z.string().trim().min(2).max(160),
+  customerPhone: z.string().trim().min(6).max(32),
+  deviceName: z.string().trim().min(1).max(120),
+  deviceModel: z.string().trim().max(80).optional(),
+  deviceSerialNumber: z.string().trim().max(80).optional(),
+  faultDescription: z.string().trim().min(1).max(2000),
+  status: RepairStatus.default('RECEIVED'),
+  diagnosis: z.string().trim().max(2000).optional(),
+  quoteAmount: money.optional(),
+  repairNotes: z.string().trim().max(2000).optional(),
+  cancellationReason: z.string().trim().max(2000).optional(),
+  createdByUserId: id.optional(),
+  deliveredAt: z.string().datetime({ offset: true }).optional(),
+  ...timestamps,
+});
+export type RepairTicket = z.infer<typeof repairTicketSchema>;

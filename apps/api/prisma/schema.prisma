@@ -82,6 +82,19 @@ enum UserRole {
   CUSTOMER
 }
 
+/// Ciclo de vida de un ticket de servicio técnico (plan §4.8).
+enum RepairStatus {
+  RECEIVED
+  DIAGNOSED
+  QUOTED
+  APPROVED
+  IN_REPAIR
+  READY
+  DELIVERED
+  CANCELLED
+  UNCLAIMED
+}
+
 model Product {
   id          String   @id @default(uuid())
   slug        String   @unique
@@ -348,4 +361,31 @@ model User {
   salesCreated    Sale[]
   paymentsRecorded Payment[]
   stockMovements  StockMovement[]
+}
+
+/// Ticket de servicio técnico (plan §4.8): el equipo del cliente queda en
+/// custodia y el estado recorre RECEIVED → … → DELIVERED. No se descuenta
+/// stock propio; consumir repuestos es una ampliación futura.
+model RepairTicket {
+  id                 String       @id @default(uuid())
+  code               String       @unique
+  customerName       String
+  customerPhone      String
+  deviceName         String
+  deviceModel        String?
+  deviceSerialNumber String?
+  faultDescription   String
+  status             RepairStatus @default(RECEIVED)
+  diagnosis          String?
+  quoteAmount        Int?
+  repairNotes        String?
+  cancellationReason String?
+  createdByUserId    String?
+  deliveredAt        DateTime?
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([customerPhone])
 }

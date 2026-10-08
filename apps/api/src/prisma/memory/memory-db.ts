@@ -173,6 +173,26 @@ interface UserRow {
   updatedAt: Date;
 }
 
+interface RepairTicketRow {
+  id: string;
+  code: string;
+  customerName: string;
+  customerPhone: string;
+  deviceName: string;
+  deviceModel: string | null;
+  deviceSerialNumber: string | null;
+  faultDescription: string;
+  status: string;
+  diagnosis: string | null;
+  quoteAmount: number | null;
+  repairNotes: string | null;
+  cancellationReason: string | null;
+  createdByUserId: string | null;
+  deliveredAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 interface Store {
   products: ProductRow[];
   variants: VariantRow[];
@@ -189,6 +209,7 @@ interface Store {
   carts: CartRow[];
   cartItems: CartItemRow[];
   users: UserRow[];
+  repairTickets: RepairTicketRow[];
 }
 
 type Row = Record<string, unknown>;
@@ -301,6 +322,7 @@ function createSeedStore(): Store {
     carts: [],
     cartItems: [],
     users: [],
+    repairTickets: [],
   };
   const at = now();
 
@@ -409,12 +431,52 @@ function createSeedStore(): Store {
     updatedAt: at,
   });
 
+  // Tickets de servicio técnico de demo (plan §4.8).
+  store.repairTickets.push({
+    id: 'seed-repair-ticket-received',
+    code: 'SR-0001',
+    customerName: 'María González',
+    customerPhone: '+56 9 1234 5678',
+    deviceName: 'Nintendo Switch OLED',
+    deviceModel: 'HEG-001',
+    deviceSerialNumber: null,
+    faultDescription: 'El joycon izquierdo presenta drift y no se registra bien la palanca.',
+    status: 'RECEIVED',
+    diagnosis: null,
+    quoteAmount: null,
+    repairNotes: null,
+    cancellationReason: null,
+    createdByUserId: null,
+    deliveredAt: null,
+    createdAt: at,
+    updatedAt: at,
+  });
+  store.repairTickets.push({
+    id: 'seed-repair-ticket-in-progress',
+    code: 'SR-0002',
+    customerName: 'Pedro Soto',
+    customerPhone: '+56 9 8765 4321',
+    deviceName: 'PlayStation 5',
+    deviceModel: 'CFI-1000',
+    deviceSerialNumber: 'F123456789',
+    faultDescription: 'No enciende; el LED parpadea y no da imagen por HDMI.',
+    status: 'APPROVED',
+    diagnosis: 'Fuente de poder dañada; requiere reemplazo.',
+    quoteAmount: 45990,
+    repairNotes: null,
+    cancellationReason: null,
+    createdByUserId: null,
+    deliveredAt: null,
+    createdAt: at,
+    updatedAt: at,
+  });
+
   return store;
 }
 
 // ---------- Match / proyección / orden ----------
 
-type ModelName = 'product' | 'variant' | 'stockLevel' | 'stockMovement' | 'compatibility' | 'mediaAsset' | 'consoleModel' | 'customer' | 'garageItem' | 'sale' | 'saleLine' | 'payment' | 'cart' | 'cartItem' | 'user';
+type ModelName = 'product' | 'variant' | 'stockLevel' | 'stockMovement' | 'compatibility' | 'mediaAsset' | 'consoleModel' | 'customer' | 'garageItem' | 'sale' | 'saleLine' | 'payment' | 'cart' | 'cartItem' | 'user' | 'repairTicket';
 
 function asRecord(value: unknown): Record<string, unknown> {
   return typeof value === 'object' && value !== null
@@ -691,6 +753,8 @@ function rowsByModel(model: ModelName, store: Store): RowList {
       return store.cartItems as unknown as RowList;
     case 'user':
       return store.users as unknown as RowList;
+    case 'repairTicket':
+      return store.repairTickets as unknown as RowList;
   }
 }
 
@@ -748,6 +812,12 @@ function createRow(model: ModelName, store: Store, data: unknown): Row {
   }
   if (model === 'cartItem' && store.cartItems.some((item) => item.cartId === withMeta.cartId && item.variantId === withMeta.variantId)) {
     throw uniqueConflict(['cartId', 'variantId']);
+  }
+  if (
+    model === 'repairTicket' &&
+    store.repairTickets.some((ticket) => ticket.code === withMeta.code)
+  ) {
+    throw uniqueConflict(['code']);
   }
   return pushRow(model, store, withMeta);
 }
@@ -844,6 +914,7 @@ export interface StoreClient {
   cart: unknown;
   cartItem: unknown;
   user: unknown;
+  repairTicket: unknown;
   $transaction<T>(fn: (tx: StoreClient) => Promise<T>): Promise<T>;
   $queryRaw<T = unknown>(sql: TemplateStringsArray, ...values: unknown[]): Promise<T>;
   $queryRawUnsafe<T = unknown>(query: string, ...values: unknown[]): Promise<T>;
@@ -868,6 +939,7 @@ function snapshot(store: Store): Store {
     carts: structuredClone(store.carts),
     cartItems: structuredClone(store.cartItems),
     users: structuredClone(store.users),
+    repairTickets: structuredClone(store.repairTickets),
   };
 }
 
@@ -887,6 +959,7 @@ function restore(store: Store, saved: Store): void {
   store.carts = saved.carts;
   store.cartItems = saved.cartItems;
   store.users = saved.users;
+  store.repairTickets = saved.repairTickets;
 }
 
 function toSql(strings: TemplateStringsArray, values: unknown[]): string {
@@ -1066,6 +1139,7 @@ export function createMemoryClient(): StoreClient {
     cart: makeDelegate('cart'),
     cartItem: makeDelegate('cartItem'),
     user: makeDelegate('user'),
+    repairTicket: makeDelegate('repairTicket'),
     async $transaction<T>(
       fn: (tx: StoreClient) => Promise<T>,
     ): Promise<T> {

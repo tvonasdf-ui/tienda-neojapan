@@ -233,6 +233,7 @@ Cada módulo es un límite de dominio con su propio service; los controllers sol
 | `sales` | Solicitudes de pedido por WhatsApp, venta unificada (online y POS), pagos registrados por el equipo, devoluciones |
 | `cart` | Carrito, reserva, cupones |
 | `media` | Firma de subidas y ciclo de vida de imágenes en Cloudinary |
+| `repairs` | Servicio técnico: recepción de equipos, diagnóstico, cotización y entrega |
 | `customers` | Clientes, direcciones, Garage |
 | `auth` | Sesiones, roles (`ADMIN`, `STAFF`, `CUSTOMER`) |
 | `reports` | Ventas, márgenes, stock bajo, rotación |
@@ -261,6 +262,7 @@ El error más común es guardar un campo `stock` y modificarlo. En su lugar:
 | `SaleLine` | saleId, variantId, cantidad, precio unitario, costo unitario al vender |
 | `Payment` | saleId, método, monto, referencia, estado; lo registra el equipo mientras no haya pasarela |
 | `Customer` / `GarageItem` | datos y consolas del cliente |
+| `RepairTicket` | id, código (`SR-XXXX`), datos y teléfono del cliente, equipo (`deviceName`, modelo, nº de serie), descripción de la falla, estado, diagnóstico, cotización, notas, motivo de cancelación, usuario que recibió, fecha de entrega |
 
 Para artículos usados únicos (una consola con su propio estado), se admite una unidad serializada (`ItemUnit` con número de serie y fotos propias) ligada a la variante.
 
@@ -304,7 +306,20 @@ Buenas prácticas:
 - Credenciales solo en el servidor; nunca exponer el `api_secret`.
 - Atrás de una interfaz `ImageStorage` (puerto) con `CloudinaryImageStorage` como adaptador, para poder cambiar de proveedor sin tocar el dominio.
 
-### 4.8 Principios de código limpio aplicados
+### 4.8 Servicio técnico y recepción de equipos
+
+Reparaciones de consolas y accesorios con custodia del equipo y trazabilidad de estado. Un `RepairTicket` es un documento de custodia: registra qué entró, quién lo recibió, el diagnóstico, la cotización aprobada y cuándo salió.
+
+- **Recepción**: se abre el ticket en `RECEIVED` siempre con datos de contacto y descripción de la falla (y, si aplica, modelo y número de serie). El código `SR-XXXX` identifica la etiqueta física que se pega al equipo.
+- **Única máquina de estados** (`RECEIVED → DIAGNOSED → QUOTED → APPROVED → IN_REPAIR → READY → DELIVERED`, más `CANCELLED` y `UNCLAIMED` en terminal): las reglas de transición viven en una función pura (`repairAdvanceError`), sin lógica en el controller, y se aplican re-dentro de una transacción para impedir carreras entre cajeros.
+  - `DIAGNOSED` exige diagnóstico; `QUOTED` exige monto de cotización; `CANCELLED`/`UNCLAIMED` exigen motivo. Todo paso debe ser contiguo: no se salta de `RECEIVED` a `IN_REPAIR`.
+  - `DELIVERED` fija `deliveredAt`; la entrega solo es válida estando `READY` (o `QUOTED`/`APPROVED` si el cliente retira sin reparar, caso "se arrepintió").
+- **Ciclo de cotización**: cotizado el trabajo, se contacta al cliente con el monto; el ticket pasa a `APPROVED` solo con su aprobación. Si no lo aprueba, el equipo se devuelve sin reparar y el ticket termina en `DELIVERED` o `CANCELLED`.
+- **Custodia**: el ticket referencia al usuario que recibió (`createdByUserId`) para trazabilidad; los repuestos usados se descuentan del inventario con un movimiento `TECH_REPAIR` (en la misma familia que venta/merma), así el costo de la reparación queda reflejado en el ledger.
+- **Garantía de reparación**: al entregar, se asocian al ticket los repuestos y el cargo; una reentrada por garantía reabre el mismo ticket por referenciam sin duplicar la custodia.
+- **Abandono**: tickets `READY` pendientes de retiro tras un plazo configurable pasan a `UNCLAIMED` (con motivo y aviso previo al cliente).
+
+### 4.9 Principios de código limpio aplicados
 
 - **Controllers delgados, services con una responsabilidad**, nombres que expresan intención (`reserveStockForCheckout`, `canCancelSale`).
 - **Lógica pura aparte**: cálculo de totales, descuentos, margen, envío y armado del mensaje de WhatsApp en funciones puras (`lib/pricing`), testeables sin inyección de dependencias.

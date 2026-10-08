@@ -45,6 +45,19 @@ export type StockMovementType = z.infer<typeof StockMovementType>;
 export const StockLocation = z.enum(['STORE', 'WAREHOUSE']);
 export type StockLocation = z.infer<typeof StockLocation>;
 
+export const RepairStatus = z.enum([
+  'RECEIVED',
+  'DIAGNOSED',
+  'QUOTED',
+  'APPROVED',
+  'IN_REPAIR',
+  'READY',
+  'DELIVERED',
+  'CANCELLED',
+  'UNCLAIMED',
+]);
+export type RepairStatus = z.infer<typeof RepairStatus>;
+
 export const ProductStatus = z.enum(['DRAFT', 'ACTIVE', 'ARCHIVED']);
 export type ProductStatus = z.infer<typeof ProductStatus>;
 
@@ -77,6 +90,8 @@ export const slug = z
 export const sku = z.string().trim().min(1).max(64);
 
 export const shortCode = z.string().regex(/^NJ-\d{4,}$/);
+
+export const repairCode = z.string().regex(/^SR-\d{4,}$/);
 
 export const clpBill = z.object({
   currency: z.literal('CLP').default('CLP'),

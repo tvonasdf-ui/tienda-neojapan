@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
   Condition,
+  RepairStatus,
   SaleChannel,
+  repairCode,
+  repairTicketSchema,
   saleSchema,
   stockMovementSchema,
   variantSchema,
@@ -126,5 +129,60 @@ describe('contratos de la tienda', () => {
     expect(cartItemRequestSchema.safeParse(line).success).toBe(true);
     expect(cartItemRequestSchema.safeParse({ ...line, quantity: 0 }).success).toBe(false);
     expect(cartItemRequestSchema.safeParse({ ...line, quantity: 21 }).success).toBe(false);
+  });
+});
+
+describe('servicio técnico', () => {
+  it('acepta el ciclo RepairStatus completo', () => {
+    for (const status of [
+      'RECEIVED',
+      'DIAGNOSED',
+      'QUOTED',
+      'APPROVED',
+      'IN_REPAIR',
+      'READY',
+      'DELIVERED',
+      'CANCELLED',
+      'UNCLAIMED',
+    ] as const) {
+      expect(RepairStatus.safeParse(status).success).toBe(true);
+    }
+    expect(RepairStatus.safeParse('PENDING').success).toBe(false);
+  });
+
+  it('valida códigos SR-XXXX para tickets de reparación', () => {
+    expect(repairCode.parse('SR-0001')).toBe('SR-0001');
+    expect(repairCode.safeParse('NJ-0001').success).toBe(false);
+    expect(repairCode.safeParse('SR-42').success).toBe(false);
+  });
+
+  it('abre un ticket con status RECEIVED por defecto', () => {
+    const ticket = repairTicketSchema.parse({
+      id: '4d5a0cd7-f9e4-43e8-a6f9-c4e0b7f2d10f',
+      code: 'SR-0001',
+      customerName: 'María González',
+      customerPhone: '+56912345678',
+      deviceName: 'Nintendo Switch OLED',
+      faultDescription: 'Drift en el joycon.',
+      createdAt: '2026-10-08T12:00:00.000Z',
+      updatedAt: '2026-10-08T12:00:00.000Z',
+    });
+
+    expect(ticket.status).toBe('RECEIVED');
+    expect(ticket.quoteAmount).toBeUndefined();
+  });
+
+  it('rechaza un ticket sin descripción de la falla', () => {
+    expect(
+      repairTicketSchema.safeParse({
+        id: '4d5a0cd7-f9e4-43e8-a6f9-c4e0b7f2d10f',
+        code: 'SR-0001',
+        customerName: 'María González',
+        customerPhone: '+56912345678',
+        deviceName: 'Nintendo Switch OLED',
+        createdAt: '2026-10-08T12:00:00.000Z',
+        updatedAt: '2026-10-08T12:00:00.000Z',
+      }).success,
+    ).toBe(false);
   });
 });

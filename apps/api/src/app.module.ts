@@ -10,6 +10,7 @@ import { InventoryModule } from './inventory/inventory.module';
 import { SalesModule } from './sales/sales.module';
 import { CartModule } from './cart/cart.module';
 import { MediaModule } from './media/media.module';
+import { RepairsModule } from './repairs/repairs.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { MediaModule } from './media/media.module';
     SalesModule,
     CartModule,
     MediaModule,
+    RepairsModule,
   ],
   providers: [
     {
