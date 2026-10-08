@@ -25,7 +25,7 @@ export function StoreHeaderActions() {
 
   return (
     <div className="header-actions">
-      <Link className="header-link" href="/cuenta">Mi cuenta</Link>
+      <Link className="header-link" href="/cuenta">Mis pedidos</Link>
       <button className="theme-toggle" type="button" onClick={() => { toggleTheme(); const next = theme === 'dark' ? 'light' : 'dark'; document.documentElement.dataset.theme = next; window.localStorage.setItem('neojapan-theme', next); }} aria-label={`Cambiar a modo ${theme === 'dark' ? 'claro' : 'oscuro'}`}>
         {theme === 'dark' ? '◐' : '◑'}
       </button>

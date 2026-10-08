@@ -36,7 +36,7 @@ export function CartPage() {
   const errorMessage = error instanceof Error ? error.message : '';
   const subtotal = items.reduce((total, item) => total + item.price * item.quantity, 0);
 
-  if (cartQuery.isPending) return <div className="notice" role="status">Sincronizando carrito…</div>;
+  if (cartId && cartQuery.isPending) return <div className="notice" role="status">Sincronizando carrito…</div>;
   if (!items.length) return <div className="empty-state">{errorMessage ? <p className="error-text" role="alert">{errorMessage}</p> : null}<span className="eyebrow">Carrito / 001</span><h2>Tu carrito está vacío.</h2><p className="muted">Encuentra piezas compatibles para tu consola.</p><Link className="button-primary" href="/catalogo">Explorar catálogo</Link></div>;
 
   return (

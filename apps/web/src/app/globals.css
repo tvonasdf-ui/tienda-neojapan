@@ -302,3 +302,21 @@ button, a, input, select { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; }
 }
+
+.skip-link { position: fixed; z-index: 60; top: 12px; left: 16px; padding: 10px 14px; background: var(--accent); color: var(--accent-ink); font-size: 13px; font-weight: 600; transform: translateY(-340%); transition: transform .18s ease; }
+.skip-link:focus { transform: translateY(0); }
+#main:focus-visible { outline: none; }
+.breadcrumb-link { color: inherit; }
+.breadcrumb-link:hover { color: var(--accent-strong); }
+.footer-utility { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 18px 0 28px; border-top: 1px solid var(--line); color: var(--muted); }
+.footer-utility .search-form { max-width: 420px; flex: 1; }
+.footer-utility .input { min-height: 38px; font-size: 12px; }
+.footer-utility .button-quiet { min-height: 38px; padding: 0 14px; white-space: nowrap; }
+.footer-utility .error-text { margin: 8px 0 0; }
+.order-lookup { display: grid; gap: 10px; margin-top: 15px; }
+.account-lookup { padding: 22px; }
+.account-lookup .section-title { font-size: 27px; }
+@media (max-width: 680px) {
+  .footer-utility { align-items: start; flex-direction: column; }
+  .footer-utility .search-form { max-width: none; width: 100%; }
+}

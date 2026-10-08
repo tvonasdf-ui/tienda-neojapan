@@ -1,14 +1,15 @@
 'use client';
 
+import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 import { addCartItem } from '@/lib/cart';
 import { formatCLP, productImage, type ConsoleModel, type ProductSummary } from '@/lib/catalog-shared';
 
 const repairs = [
-  { id: 'drift', title: 'Drift en joystick', issue: 'Joystick', icon: '01' },
-  { id: 'battery', title: 'Batería / carga', issue: 'Batería', icon: '02' },
-  { id: 'reader', title: 'Problema de lector', issue: 'Lector', icon: '03' },
-  { id: 'cooling', title: 'Ventilación', issue: 'Ventilador', icon: '04' },
+  { id: 'drift', title: 'Drift en joystick', issue: 'Joystick', icon: '01', keywords: ['joystick', 'palanca', 'stick', 'drift'] },
+  { id: 'battery', title: 'Batería / carga', issue: 'Batería', icon: '02', keywords: ['bateria', 'carga', 'pila'] },
+  { id: 'reader', title: 'Problema de lector', issue: 'Lector', icon: '03', keywords: ['lector', 'lente', 'disco'] },
+  { id: 'cooling', title: 'Ventilación', issue: 'Ventilador', icon: '04', keywords: ['ventilador', 'fan', 'enfriamiento'] },
 ];
 const shellColors = [
   { name: 'Grafito', value: '#303438' },
@@ -24,7 +25,12 @@ const buttonColors = [
 ];
 const TEMPLATE_KEY = 'neojapan-builder-template-v1';
 
+function availableOf(product?: ProductSummary): ProductSummary['variants'] {
+  return (product?.variants.filter((variant) => variant.available > 0) ?? []);
+}
+
 export function BuilderConfigurator({ consoles, products }: { consoles: ConsoleModel[]; products: ProductSummary[] }) {
+  const router = useRouter();
   const [consoleId, setConsoleId] = useState('');
   const [repair, setRepair] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
@@ -35,9 +41,15 @@ export function BuilderConfigurator({ consoles, products }: { consoles: ConsoleM
   const [templateSaved, setTemplateSaved] = useState(false);
   const [error, setError] = useState('');
   const selectedConsole = consoles.find((item) => item.id === consoleId);
-  const matching = useMemo(() => products.filter((product) => product.category.toLowerCase().includes('repuesto') && selectedConsole && product.compatibilities?.some((compatibility) => compatibility.consoleModelId === selectedConsole.id && compatibility.level === 'CONFIRMED')), [products, selectedConsole]);
-  const selectedProduct = matching.find((product) => product.id === selectedProductId);
   const selectedRepair = repairs.find((item) => item.id === repair);
+  const matching = useMemo(() => {
+    const base = products.filter((product) => product.category.toLowerCase().includes('repuesto') && selectedConsole && product.compatibilities?.some((compatibility) => compatibility.consoleModelId === selectedConsole.id && compatibility.level === 'CONFIRMED'));
+    if (!selectedRepair) return base;
+    const keywords = selectedRepair.keywords;
+    return base.filter((product) => keywords.some((keyword) => product.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(keyword)));
+  }, [products, selectedConsole, selectedRepair]);
+  const selectedProduct = matching.find((product) => product.id === selectedProductId);
+  const multiCondition = availableOf(selectedProduct).length > 1;
 
   function saveTemplate() {
     if (!selectedConsole) return;
@@ -59,10 +71,16 @@ export function BuilderConfigurator({ consoles, products }: { consoles: ConsoleM
   }
 
   async function addKit() {
-    const line = selectedProduct;
-    const variant = line?.variants[0];
-    if (!line || !variant) return;
     setError('');
+    const line = selectedProduct;
+    if (!line) return;
+    const available = availableOf(line);
+    if (available.length > 1) {
+      router.push(`/producto/${line.slug}`);
+      return;
+    }
+    const variant = available[0];
+    if (!variant) return;
     try {
       await addCartItem({ variantId: variant.id, quantity: 1, slug: line.slug, name: line.name, platform: line.platform, condition: variant.condition, sku: variant.sku, price: variant.price, image: productImage(line.media?.publicId) });
       setAdded(true);
@@ -81,7 +99,7 @@ export function BuilderConfigurator({ consoles, products }: { consoles: ConsoleM
         </div>
         <label className="field"><span>Tu consola</span><select className="select" value={consoleId} onChange={(event) => { setConsoleId(event.target.value); setSelectedProductId(''); setAdded(false); setTemplateSaved(false); }}><option value="">Selecciona un modelo</option>{consoles.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.revision ?? item.platform}</option>)}</select></label>
         {mode === 'repair' ? <>
-          <div><span className="mono-label">REPAIR KIT / CONFIGURADOR GUIADO</span><h2 className="section-title">¿Qué necesitas reparar?</h2><p className="muted small">Selecciona el síntoma. Solo se muestran piezas con compatibilidad confirmada para el modelo exacto.</p></div>
+          <div><span className="mono-label">REPAIR KIT / CONFIGURADOR GUIADO</span><h2 className="section-title">¿Qué necesitas reparar?</h2><p className="muted small">Elige el síntoma para filtrar. Solo se muestran repuestos con compatibilidad confirmada para el modelo exacto.</p></div>
           <div className="choice-grid">{repairs.map((item) => <button className="choice-card" type="button" key={item.id} aria-pressed={repair === item.id} onClick={() => { setRepair(item.id); setSelectedProductId(''); setAdded(false); }}><span className="mono-label">{item.icon} / REPAIR</span><br />{item.title}</button>)}</div>
         </> : <>
           <div><span className="mono-label">CUSTOM / PREVIEW POR CAPAS</span><h2 className="section-title">Combina colores.</h2><p className="muted small">Previsualización 2D de carcasa y botones. La plantilla queda guardada en este navegador.</p></div>
@@ -95,13 +113,15 @@ export function BuilderConfigurator({ consoles, products }: { consoles: ConsoleM
         <span className="mono-label">{mode === 'repair' ? 'PIEZA SUGERIDA' : 'PLANTILLA DE COLOR'}</span>
         <h2>{selectedConsole?.name ?? 'Tu consola'}</h2>
         {mode === 'repair' ? <>
-          <p className="muted small">{selectedRepair ? `Síntoma seleccionado: ${selectedRepair.title}. No hay recetas de reparación configuradas; elige una pieza para solicitarla individualmente.` : 'Selecciona una falla y una consola para revisar piezas compatibles.'}</p>
+          <p className="muted small">{selectedRepair ? `Filtramos repuestos compatibles que coinciden con «${selectedRepair.title}». Sin una receta predefinida, eliges la pieza y la solicitas individualmente.` : selectedConsole ? 'Elige una falla para filtrar las piezas compatibles de la consola.' : 'Selecciona una consola y una falla para revisar piezas compatibles.'}</p>
           {selectedConsole && selectedRepair ? matching.length ? <div className="kit-items">{matching.slice(0, 3).map((product) => {
-            const availableVariants = product.variants.filter((variant) => variant.available > 0);
-            const variant = availableVariants[0];
-            return <button className="summary-row" type="button" aria-pressed={selectedProductId === product.id} key={product.id} onClick={() => { setSelectedProductId(product.id); setAdded(false); }}><span>{product.name}{variant ? ` · ${variant.condition}` : ''}</span><strong>{variant ? formatCLP(variant.price) : 'Agotado'}</strong></button>;
-          })}</div> : <p className="notice">Aún no hay una receta completa de herramientas y piezas para esta reparación. Mostramos solo repuestos realmente compatibles del catálogo.</p> : <p className="notice">La disponibilidad y los precios se verifican con el servidor al agregar.</p>}
-          <button className="button-primary" type="button" onClick={addKit} disabled={!selectedConsole || !selectedRepair || !selectedProduct?.variants.some((variant) => variant.available > 0)}>{added ? 'Pieza agregada al carrito ✓' : 'Agregar pieza seleccionada'}</button>
+            const available = availableOf(product);
+            const variant = available[0];
+            const cheapest = available.reduce((acc, item) => (item.price < acc.price ? item : acc), available[0]!);
+            return <button className="summary-row" type="button" aria-pressed={selectedProductId === product.id} key={product.id} onClick={() => { setSelectedProductId(product.id); setAdded(false); }}><span>{product.name}{available.length > 1 ? ' · varias condiciones' : variant ? ` · ${variant.condition}` : ' · Agotado'}</span><strong>{available.length > 1 ? `Desde ${formatCLP(cheapest.price)}` : variant ? formatCLP(variant.price) : 'Agotado'}</strong></button>;
+          })}</div> : <p className="notice">No tenemos un repuesto confirmado que coincida con «{selectedRepair.title}» para este modelo. Escríbenos por WhatsApp y te lo conseguimos.</p> : <p className="notice">La disponibilidad y los precios se verifican con el servidor al agregar.</p>}
+          <button className="button-primary" type="button" onClick={addKit} disabled={!selectedConsole || !selectedRepair || !selectedProduct || !multiCondition && !availableOf(selectedProduct).length}>{multiCondition ? 'Ver y elegir condición ↗' : added ? 'Pieza agregada al carrito ✓' : 'Agregar pieza seleccionada'}</button>
+          {multiCondition ? <p className="muted small">Hay más de una condición disponible; te llevamos a la ficha para elegirla.</p> : null}
           {error ? <p className="error-text" role="alert">{error}</p> : null}
         </> : <>
           <div className="mod-preview" style={{ '--shell-color': shellColor, '--button-color': buttonColor } as React.CSSProperties} aria-label="Previsualización de colores seleccionados"><div className="mod-preview-shell"><span /><span /><span /><span /></div></div>

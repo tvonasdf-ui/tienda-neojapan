@@ -31,5 +31,6 @@ export async function POST(request: NextRequest) {
   revalidateTag('products', 'max');
   revalidateTag(`product:${parsed.data.productId}`, 'max');
   revalidateTag(`product:${parsed.data.slug}`, 'max');
+  revalidateTag('consoles', 'max');
   return NextResponse.json({ revalidated: true });
 }

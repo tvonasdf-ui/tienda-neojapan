@@ -1,6 +1,8 @@
 import { Inter, JetBrains_Mono, Space_Grotesk } from 'next/font/google';
 import type { Metadata } from 'next';
 import Link from 'next/link';
+import { MainNav } from '@/components/main-nav';
+import { OrderLookup } from '@/components/order-lookup';
 import { StoreHeaderActions } from '@/components/store-header-actions';
 import { Providers } from '@/components/providers';
 import './globals.css';
@@ -48,21 +50,18 @@ export default function RootLayout({
         ].join(' ')}
       >
         <Providers>
+        <a className="skip-link" href="#main">Saltar al contenido</a>
         <header className="site-header">
           <div className="site-header-inner">
             <Link className="brand" href="/" aria-label="Neojapan, inicio">
               <span className="brand-mark" aria-hidden="true">N</span>
               <span>NEOJAPAN<span className="brand-period">.</span></span>
             </Link>
-            <nav className="main-nav" aria-label="Navegación principal">
-              <Link href="/catalogo">Catálogo</Link>
-              <Link href="/garage">Console garage</Link>
-              <Link href="/builder">Kit builder</Link>
-            </nav>
+            <MainNav />
             <StoreHeaderActions />
           </div>
         </header>
-        {children}
+        <div id="main" tabIndex={-1}>{children}</div>
         <footer className="site-footer">
           <div className="footer-inner">
             <Link className="brand" href="/">
@@ -73,9 +72,13 @@ export default function RootLayout({
             <div className="footer-links">
               <Link href="/catalogo">Catálogo</Link>
               <Link href="/garage">Garage</Link>
-              <Link href="/carrito">Carrito</Link>
+              <Link href="/cuenta">Mis pedidos</Link>
             </div>
             <span className="mono footer-code">SANTIAGO · CL</span>
+          </div>
+          <div className="footer-utility page-shell">
+            <span className="mono-label">¿PERDISTE TU CÓDIGO DE PEDIDO?</span>
+            <OrderLookup compact />
           </div>
         </footer>
         </Providers>

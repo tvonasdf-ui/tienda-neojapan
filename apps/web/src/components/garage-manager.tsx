@@ -6,6 +6,7 @@ import type { ConsoleModel } from '@/lib/catalog';
 
 const GARAGE_KEY = 'neojapan-garage-v1';
 type GarageEntry = {
+  id: string;
   consoleId: string;
   nickname: string;
   customerPhone?: string;
@@ -31,6 +32,7 @@ export function GarageManager({ consoles, preselected }: { consoles: ConsoleMode
       if (!Array.isArray(value)) return [];
       return value.filter((entry): entry is GarageEntry =>
         typeof entry === 'object' && entry !== null &&
+        'id' in entry && typeof entry.id === 'string' &&
         'consoleId' in entry && typeof entry.consoleId === 'string' &&
         'nickname' in entry && typeof entry.nickname === 'string',
       );
@@ -46,6 +48,7 @@ export function GarageManager({ consoles, preselected }: { consoles: ConsoleMode
   const [modelCode, setModelCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  const [syncNotice, setSyncNotice] = useState('');
   const platforms = useMemo(() => [...new Set(consoles.map((item) => item.platform))], [consoles]);
 
   function saveGarage(next: GarageEntry[]) {
@@ -59,8 +62,19 @@ export function GarageManager({ consoles, preselected }: { consoles: ConsoleMode
       setError('Ingresa un número de teléfono válido para identificar tu Garage.');
       return;
     }
-    setBusy(true);
+    const entry: GarageEntry = {
+      id: window.crypto.randomUUID(),
+      consoleId,
+      nickname: nickname.trim(),
+      customerPhone: normalizedPhone,
+    };
+    saveGarage([...items, entry]);
+    setStep(0);
+    setNickname('');
+    setCustomerPhone('');
+    setSyncNotice('');
     setError('');
+    setBusy(true);
     const apiBase = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '') ?? 'http://localhost:3002';
     try {
       const response = await fetch(`${apiBase}/api/v1/garage`, {
@@ -68,10 +82,10 @@ export function GarageManager({ consoles, preselected }: { consoles: ConsoleMode
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify({
-          customerName: nickname.trim() || 'Cliente Neojapan',
+          customerName: entry.nickname || 'Cliente Neojapan',
           customerPhone: normalizedPhone,
           consoleModelId: consoleId,
-          notes: nickname.trim() || undefined,
+          notes: entry.nickname || undefined,
         }),
       });
       const body: unknown = await response.json();
@@ -79,16 +93,8 @@ export function GarageManager({ consoles, preselected }: { consoles: ConsoleMode
         const message = typeof body === 'object' && body !== null && 'message' in body ? String(body.message) : '';
         throw new Error(message || 'No se pudo guardar la consola en el Garage.');
       }
-      const next = [
-        ...items.filter((item) => item.consoleId !== consoleId),
-        { consoleId, nickname: nickname.trim(), customerPhone: normalizedPhone },
-      ];
-      saveGarage(next);
-      setStep(0);
-      setNickname('');
-      setCustomerPhone('');
     } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'No se pudo guardar la consola.');
+      setSyncNotice(`Consola guardada en este navegador, pero no se pudo sincronizar con el servidor${caught instanceof Error ? `: ${caught.message}` : '.'}`);
     } finally {
       setBusy(false);
     }
@@ -131,10 +137,11 @@ export function GarageManager({ consoles, preselected }: { consoles: ConsoleMode
       </section>
       <section className="section-tight">
         <div className="section-heading"><div><span className="eyebrow">Mis consolas</span><h2 className="section-title">Tu garage virtual.</h2></div><span className="mono-label">{items.length} REGISTRADAS</span></div>
+        {syncNotice ? <p className="notice" role="status">{syncNotice}</p> : null}
         {!items.length ? <div className="empty-state"><h2>Tu garage empieza aquí.</h2><p className="muted">Registra una consola para consultar la compatibilidad del catálogo.</p></div> : <div className="garage-grid">{items.map((entry) => {
           const model = consoles.find((item) => item.id === entry.consoleId);
           if (!model) return null;
-          return <article className="garage-card" key={entry.consoleId}><div className="console-visual" aria-hidden="true">NJ</div><span className="mono-label">{model.platform} · {model.revision ?? 'MODELO'}</span><h3>{entry.nickname || model.name}</h3><p className="muted small">{model.name}</p><div className="inline-actions"><Link className="text-link" href={`/consola/${model.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`}>Ver compatibles ↗</Link><Link className="text-link" href={`/catalogo?compatibleConsoleId=${encodeURIComponent(model.id)}`}>Filtrar catálogo ↗</Link></div><button className="button-quiet remove-button" type="button" onClick={() => saveGarage(items.filter((item) => item.consoleId !== entry.consoleId))}>Quitar</button></article>;
+          return <article className="garage-card" key={entry.id}><div className="console-visual" aria-hidden="true">NJ</div><span className="mono-label">{model.platform} · {model.revision ?? 'MODELO'}</span><h3>{entry.nickname || model.name}</h3><p className="muted small">{model.name}</p><div className="inline-actions"><Link className="text-link" href={`/consola/${model.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '')}`}>Ver compatibles ↗</Link><Link className="text-link" href={`/catalogo?compatibleConsoleId=${encodeURIComponent(model.id)}`}>Filtrar catálogo ↗</Link></div><button className="button-quiet remove-button" type="button" onClick={() => saveGarage(items.filter((item) => item.id !== entry.id))}>Quitar</button></article>;
         })}</div>}
       </section>
     </div>

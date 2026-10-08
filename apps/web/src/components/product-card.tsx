@@ -4,6 +4,9 @@ import { formatCLP, productImage, type ProductSummary } from '@/lib/catalog';
 
 export function ProductCard({ product, compatibleConsoleId }: { product: ProductSummary; compatibleConsoleId?: string }) {
   const variant = product.variants[0];
+  const available = product.variants.filter((item) => item.available > 0);
+  const hasStock = available.length > 0;
+  const cheapest = available.length ? available.reduce((acc, item) => (item.price < acc.price ? item : acc), available[0]!) : null;
   const compatibility = product.compatibilities?.find((item) => item.consoleModelId === compatibleConsoleId);
   return (
     <article className="product-card">
@@ -16,10 +19,17 @@ export function ProductCard({ product, compatibleConsoleId }: { product: Product
           <div className="product-meta"><span>{product.platform}</span><span>{product.category}</span></div>
           {compatibility ? <span className={`tag compatibility-badge ${compatibility.level === 'CONFIRMED' ? 'tag-success' : ''}`}>{compatibility.level === 'CONFIRMED' ? 'Compatibilidad confirmada' : 'Revisar compatibilidad'}</span> : null}
           <strong className="product-title">{product.name}</strong>
-          <div className="product-price-line">
-            <span>{variant ? formatCLP(variant.price) : 'Consultar'}</span>
-            {variant ? <span className="tag">{variant.condition === 'NEW' ? 'Nuevo' : `Grado ${variant.condition}`}</span> : null}
-          </div>
+          {hasStock ? (
+            <div className="product-price-line">
+              <span>{product.variants.length > 1 ? `Desde ${formatCLP(cheapest!.price)}` : formatCLP(cheapest!.price)}</span>
+              <span className="tag">{cheapest!.condition === 'NEW' ? 'Nuevo' : `Grado ${cheapest!.condition}`}</span>
+            </div>
+          ) : (
+            <div className="product-price-line">
+              <span>Agotado</span>
+              <span className="tag tag-accent">Agotado</span>
+            </div>
+          )}
         </div>
       </Link>
     </article>

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { connection } from 'next/server';
+import Link from 'next/link';
 import { notFound } from 'next/navigation';
 import { ProductGallery } from '@/components/product-gallery';
 import { ProductPurchasePanel } from '@/components/product-purchase-panel';
@@ -46,7 +47,7 @@ export default async function ProductPage({ params }: Props) {
 
   return (
     <main className="page-shell">
-      <nav className="breadcrumb mono-label" aria-label="Migas de pan"><a href="/catalogo">CATÁLOGO</a><span aria-hidden="true"> / </span><span>{product.category.toUpperCase()}</span></nav>
+      <nav className="breadcrumb mono-label" aria-label="Migas de pan"><Link className="breadcrumb-link" href="/catalogo">CATÁLOGO</Link><span aria-hidden="true"> / </span><Link className="breadcrumb-link" href={`/catalogo?category=${encodeURIComponent(product.category)}`}>{product.category.toUpperCase()}</Link></nav>
       <div className="product-detail">
         <ProductGallery media={product.media.map((media) => ({ src: productImage(media.publicId), alt: media.alt ?? product.name }))} fallback={productImage(primary?.publicId)} name={product.name} />
         <div className="product-detail-copy">

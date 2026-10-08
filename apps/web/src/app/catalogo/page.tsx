@@ -27,13 +27,13 @@ export default async function CatalogPage({ searchParams }: { searchParams: Sear
   for (const [key, val] of Object.entries({ q, platform, category, condition, minPrice: min, maxPrice: max, compatibleConsoleId })) {
     if (val) query.set(key, val);
   }
-  const [total, consoles] = await Promise.all([getProductCount(query.toString()), getConsoles()]);
+  const [total, consoles, catalog] = await Promise.all([getProductCount(query.toString()), getConsoles(), getProducts('limit=48')]);
   const pageCount = Math.max(1, Math.ceil(total / 24));
   const page = Math.min(requestedPage, pageCount);
   query.set('offset', String((page - 1) * 24));
   const products = await getProducts(query.toString());
-  const platforms = [...new Set(products.map((product) => product.platform))].sort();
-  const categories = [...new Set(products.map((product) => product.category))].sort();
+  const platforms = [...new Set(catalog.map((product) => product.platform))].sort();
+  const categories = [...new Set(catalog.map((product) => product.category))].sort();
 
   return (
     <main className="page-shell">

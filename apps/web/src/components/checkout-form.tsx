@@ -97,6 +97,10 @@ export function CheckoutForm() {
       setError('Indica la comuna para calcular el despacho.');
       return;
     }
+    if (!/^\+?[0-9][0-9 ().-]{7,}$/.test(phone.trim())) {
+      setError('Ingresa un teléfono válido, por ejemplo +56 9 1234 5678.');
+      return;
+    }
     const whatsappWindow = window.open('about:blank', '_blank');
     setPopup(whatsappWindow);
     setBusy(true);
@@ -146,7 +150,7 @@ export function CheckoutForm() {
     return <section className="order-success surface-card"><span className="eyebrow">Solicitud creada</span><h2 className="section-title">Pedido {order.code}</h2><p className="lead">Tu solicitud quedó registrada. No se ha reservado ni descontado inventario; el equipo confirmará disponibilidad manualmente por WhatsApp.</p>{order.discountAmount > 0 ? <div className="summary-row"><span>Descuento aplicado</span><strong>−{formatCLP(order.discountAmount)}</strong></div> : null}<div className="summary-row summary-total"><span>Total validado</span><strong>{formatCLP(order.total)}</strong></div><div className="order-actions"><a className="button-primary" href={order.whatsappUrl} target="_blank" rel="noreferrer">Abrir WhatsApp ↗</a><Link className="button-secondary" href={`/pedido/${order.code}`}>Ver detalle de solicitud</Link></div></section>;
   }
 
-  if (cartQuery.isPending) return <p className="notice" role="status">Cargando el carrito guardado…</p>;
+  if (cartId && cartQuery.isPending) return <p className="notice" role="status">Cargando el carrito guardado…</p>;
   if (!items.length) return <div className="empty-state">{cartQuery.error ? <p className="error-text" role="alert">{cartQuery.error instanceof Error ? cartQuery.error.message : 'No se pudo cargar el carrito.'}</p> : null}<h2>No hay productos para solicitar.</h2><p className="muted">Vuelve al catálogo y agrega una pieza a tu carrito.</p><Link className="button-primary" href="/catalogo">Ir al catálogo</Link></div>;
 
   return (

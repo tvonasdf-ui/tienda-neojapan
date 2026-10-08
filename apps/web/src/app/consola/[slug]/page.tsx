@@ -38,6 +38,7 @@ export default async function ConsolePage({ params, searchParams }: Props) {
 
   return (
     <main className="page-shell">
+      <nav className="breadcrumb mono-label" aria-label="Migas de pan"><Link className="breadcrumb-link" href="/catalogo">CATÁLOGO</Link><span aria-hidden="true"> / </span><span>CONSOLAS / {model.name.toUpperCase()}</span></nav>
       <header className="catalog-top console-hero">
         <div><span className="eyebrow">Console hub / {model.platform}</span><h1 className="section-title">{model.name}</h1><p className="muted small">{model.revision ? `Modelo de referencia ${model.revision}.` : 'Explora juegos, piezas y accesorios asociados a esta consola.'} Compatibilidad declarada y revisada por Neojapan.</p></div>
         <Link className="button-secondary" href={`/garage?console=${encodeURIComponent(model.id)}`}>Guardar en mi Garage</Link>
