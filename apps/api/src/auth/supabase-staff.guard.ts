@@ -1,0 +1,92 @@
+import {
+  CanActivate,
+  ExecutionContext,
+  Injectable,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { errors, createRemoteJWKSet, jwtVerify } from 'jose';
+import type { Request } from 'express';
+import { PrismaService } from '../prisma/prisma.service';
+import { normalizeSupabaseUrl } from './supabase-url';
+import { staffIdentityFromClaims, type StaffIdentity } from './staff-identity';
+
+interface AuthenticatedRequest extends Request {
+  staff: StaffIdentity;
+}
+
+@Injectable()
+export class SupabaseStaffGuard implements CanActivate {
+  private jwks: ReturnType<typeof createRemoteJWKSet> | undefined;
+  private issuer: string | undefined;
+
+  constructor(
+    private readonly config: ConfigService,
+    private readonly prisma: PrismaService,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const authorization = request.headers.authorization;
+    const token = authorization?.match(/^Bearer\s+([^\s]+)$/i)?.[1];
+    if (!token) {
+      throw new UnauthorizedException('Se requiere un token Bearer de Supabase');
+    }
+
+    const configuredUrl = this.config.get<string>('SUPABASE_URL');
+    const supabaseUrl = configuredUrl ? normalizeSupabaseUrl(configuredUrl) : '';
+    if (!supabaseUrl) {
+      throw new ServiceUnavailableException('SUPABASE_URL no está configurada en la API');
+    }
+
+    const issuer = `${supabaseUrl}/auth/v1`;
+    const jwks = this.getJwks(supabaseUrl, issuer);
+    let claims;
+    try {
+      ({ payload: claims } = await jwtVerify(token, jwks, {
+        issuer,
+        audience: 'authenticated',
+        algorithms: ['ES256', 'RS256'],
+      }));
+    } catch (error) {
+      if (error instanceof errors.JWKSTimeout || error instanceof errors.JWKSInvalid) {
+        throw new ServiceUnavailableException('No se pudo consultar las claves de Supabase');
+      }
+      if (error instanceof errors.JOSEError) {
+        throw new UnauthorizedException('El token de Supabase es inválido o venció');
+      }
+      throw new ServiceUnavailableException('No se pudo validar el token con Supabase');
+    }
+
+    const staff = staffIdentityFromClaims(claims);
+    await this.prisma.user.upsert({
+      where: { id: staff.id },
+      create: {
+        id: staff.id,
+        email: staff.email,
+        name: staff.email,
+        role: staff.role,
+      },
+      update: {
+        email: staff.email,
+        role: staff.role,
+      },
+    });
+    request.staff = staff;
+    return true;
+  }
+
+  private getJwks(
+    supabaseUrl: string,
+    issuer: string,
+  ): ReturnType<typeof createRemoteJWKSet> {
+    if (!this.jwks || this.issuer !== issuer) {
+      this.jwks = createRemoteJWKSet(
+        new URL(`${issuer}/.well-known/jwks.json`),
+      );
+      this.issuer = issuer;
+    }
+    return this.jwks;
+  }
+}

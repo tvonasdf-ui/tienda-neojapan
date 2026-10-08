@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" fill="none">
+  <rect width="800" height="1000" fill="#202326"/>
+  <path d="M400 270v460M170 500h460M238 338l324 324M562 338 238 662" stroke="#45494d" stroke-width="2"/>
+  <circle cx="400" cy="500" r="176" stroke="#45494d" stroke-width="2"/>
+  <path d="M400 431v138M331 500h138" stroke="#f04438" stroke-width="4"/>
+  <text x="400" y="810" fill="#a2a8ac" font-family="monospace" font-size="20" letter-spacing="6" text-anchor="middle">NEOJAPAN / ARCHIVE</text>
+</svg>

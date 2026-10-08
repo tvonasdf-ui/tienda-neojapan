@@ -1,0 +1,351 @@
+// Neojapan — esquema de datos (plan §4.4). Todos los montos en CLP enteros.
+// Stock solo como libro de movimientos (stock_movements) + nivel transaccional
+// (stock_levels) — ver plan §4.3.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Condition {
+  NEW
+  A
+  B
+  C
+}
+
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum CompatibilityLevel {
+  CONFIRMED
+  PARTIAL
+}
+
+enum StockLocation {
+  STORE
+  WAREHOUSE
+}
+
+enum StockMovementType {
+  RECEIPT
+  SALE
+  RESERVATION
+  RELEASE
+  ADJUSTMENT
+  LOSS
+  RETURN
+}
+
+enum ItemUnitStatus {
+  AVAILABLE
+  RESERVED
+  SOLD
+  RETURNED
+}
+
+enum SaleChannel {
+  ONLINE
+  POS
+}
+
+enum SaleStatus {
+  REQUESTED
+  CONFIRMED
+  PAID
+  CANCELLED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  TRANSFER
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  REFUNDED
+  VOID
+}
+
+enum UserRole {
+  ADMIN
+  STAFF
+  CUSTOMER
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  slug        String   @unique
+  name        String
+  description String?
+  category    String
+  platform    String
+  status      ProductStatus @default(DRAFT)
+  isFeatured  Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  variants        Variant[]
+  media           MediaAsset[]
+  compatibilities Compatibility[]
+
+  @@index([platform])
+  @@index([category, status])
+}
+
+model Variant {
+  id        String    @id @default(uuid())
+  productId String
+  sku       String    @unique
+  condition Condition
+  price     Int
+  cost      Int
+  barcode   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  product      Product         @relation(fields: [productId], references: [id], onDelete: Cascade)
+  stockLevels  StockLevel[]
+  movements    StockMovement[]
+  saleLines    SaleLine[]
+  itemUnits    ItemUnit[]
+  cartItems    CartItem[]
+
+  @@unique([productId, condition])
+  @@index([sku])
+}
+
+/// Nivel de stock transaccional por variante+sucursal (plan §4.3).
+model StockLevel {
+  variantId String
+  location  StockLocation
+  onHand    Int            @default(0)
+  reserved  Int            @default(0)
+  updatedAt DateTime       @updatedAt
+
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@id([variantId, location])
+}
+
+/// Libro inmodificable de movimientos de stock (plan §4.3): auditoría.
+model StockMovement {
+  id        String             @id @default(uuid())
+  variantId String
+  delta     Int
+  type      StockMovementType
+  reason    String
+  userId    String?
+  refId     String?
+  location  StockLocation
+  createdAt DateTime           @default(now())
+
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  user    User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([variantId, createdAt])
+  @@index([type])
+  @@index([refId])
+}
+
+/// Plataformas/consolas soportadas (garage + matriz de compatibilidad).
+model ConsoleModel {
+  id                 String   @id @default(uuid())
+  platform           String
+  name               String
+  revision           String?
+  identificationNotes String?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  compatibilities Compatibility[]
+  garageItems      GarageItem[]
+
+  @@unique([platform, name])
+}
+
+model Compatibility {
+  id              String             @id @default(uuid())
+  productId       String
+  consoleModelId  String
+  level           CompatibilityLevel
+  source          String
+  notes           String?
+  createdAt       DateTime           @default(now())
+
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  consoleModel ConsoleModel @relation(fields: [consoleModelId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, consoleModelId])
+  @@index([consoleModelId])
+}
+
+model MediaAsset {
+  id        String  @id @default(uuid())
+  productId String
+  publicId  String  @unique
+  alt       String?
+  isPrimary Boolean @default(false)
+  sortOrder Int     @default(0)
+  width     Int?
+  height    Int?
+  createdAt DateTime @default(now())
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId, sortOrder])
+}
+
+model Sale {
+  id              String      @id @default(uuid())
+  code            String      @unique
+  channel         SaleChannel
+  status          SaleStatus  @default(REQUESTED)
+  customerId      String?
+  staffUserId     String?
+  clientSaleId    String?     @unique
+  deliveryMode    String      @default("PICKUP")
+  reservationExpiresAt DateTime?
+  currency        String      @default("CLP")
+  subtotal        Int
+  discountAmount  Int         @default(0)
+  couponCode      String?
+  shippingAmount  Int         @default(0)
+  total           Int
+  dispatchCommune String?
+  customerNote    String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  lines      SaleLine[]
+  payments   Payment[]
+  customer   Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  staffUser  User?     @relation(fields: [staffUserId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([customerId])
+  @@index([staffUserId])
+}
+
+model Cart {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  items     CartItem[]
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  variantId String
+  quantity  Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([cartId, variantId])
+  @@index([variantId])
+}
+
+model SaleLine {
+  id        String  @id @default(uuid())
+  saleId    String
+  variantId String
+  quantity  Int
+  unitPrice Int
+  unitCost  Int
+  createdAt DateTime @default(now())
+
+  sale    Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@unique([saleId, variantId])
+  @@index([variantId])
+}
+
+model Payment {
+  id               String        @id @default(uuid())
+  saleId           String
+  method           PaymentMethod
+  amount           Int
+  reference        String?
+  status           PaymentStatus @default(PENDING)
+  recordedByUserId String?
+  createdAt        DateTime      @default(now())
+
+  sale Sale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [recordedByUserId], references: [id], onDelete: SetNull)
+
+  @@index([saleId])
+  @@index([recordedByUserId])
+}
+
+model Customer {
+  id        String   @id @default(uuid())
+  name      String
+  phone     String
+  email     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  sales      Sale[]
+  garageItems GarageItem[]
+
+  @@index([phone])
+  @@index([email])
+}
+
+/// Consolas del cliente (garage) para la matriz de compatibilidad.
+model GarageItem {
+  id             String   @id @default(uuid())
+  customerId     String
+  consoleModelId String
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  consoleModel ConsoleModel @relation(fields: [consoleModelId], references: [id], onDelete: Cascade)
+
+  @@index([customerId])
+}
+
+/// Unidades físicas con número de serie (artículos bajo la asociación).
+model ItemUnit {
+  id           String           @id @default(uuid())
+  variantId    String
+  serialNumber String
+  condition    Condition
+  status       ItemUnitStatus   @default(AVAILABLE)
+  createdAt    DateTime         @default(now())
+
+  variant Variant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([variantId, serialNumber])
+  @@index([status])
+}
+
+/// Staff/admin del panel. Roles: ADMIN, STAFF.
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  name      String
+  role      UserRole @default(STAFF)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  salesCreated    Sale[]
+  paymentsRecorded Payment[]
+  stockMovements  StockMovement[]
+}
