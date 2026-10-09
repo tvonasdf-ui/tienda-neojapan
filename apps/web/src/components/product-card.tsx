@@ -27,7 +27,7 @@ export function ProductCard({ product, compatibleConsoleId }: { product: Product
           ) : (
             <div className="product-price-line">
               <span>Agotado</span>
-              <span className="tag tag-accent">Agotado</span>
+              <span className="tag">Agotado</span>
             </div>
           )}
         </div>

@@ -46,7 +46,7 @@ export default function RootLayout({
           inter.variable,
           spaceGrotesk.variable,
           jetBrainsMono.variable,
-          'min-h-screen bg-gray-950 font-sans text-gray-100 antialiased',
+          'min-h-screen font-sans antialiased',
         ].join(' ')}
       >
         <Providers>

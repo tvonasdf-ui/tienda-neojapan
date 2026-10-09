@@ -5,12 +5,12 @@ import { getConsoles, getProducts } from '@/lib/catalog';
 
 export const instant = false;
 
-const categories = [
-  { id: '01', label: 'Juegos retro', detail: 'Clásicos probados', href: '/catalogo?category=Juegos+retro' },
-  { id: '02', label: 'Repuestos', detail: 'Piezas que sí encajan', href: '/catalogo?category=Repuestos' },
-  { id: '03', label: 'Accesorios', detail: 'Setup completo', href: '/catalogo?category=Accesorios' },
-  { id: '04', label: 'Consolas', detail: 'Hardware revisado', href: '/catalogo?category=Consolas' },
-];
+const categoryDetails: Record<string, string> = {
+  'Juegos retro': 'Clásicos probados',
+  Repuestos: 'Piezas que sí encajan',
+  Consolas: 'Hardware revisado',
+  Accesorios: 'Setup completo',
+};
 
 function slugify(value: string): string {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
@@ -18,7 +18,13 @@ function slugify(value: string): string {
 
 export default async function HomePage() {
   await connection();
-  const [products, consoles] = await Promise.all([getProducts('limit=8'), getConsoles()]);
+  const [products, consoles] = await Promise.all([getProducts('limit=48'), getConsoles()]);
+  const categories = [...new Set(products.map((product) => product.category))].sort().map((category, index) => ({
+    id: String(index + 1).padStart(2, '0'),
+    label: category,
+    detail: categoryDetails[category] ?? 'Piezas verificadas',
+    href: `/catalogo?category=${encodeURIComponent(category)}`,
+  }));
 
   return (
     <main>
