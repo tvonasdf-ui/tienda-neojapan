@@ -29,9 +29,10 @@ function availableOf(product?: ProductSummary): ProductSummary['variants'] {
   return (product?.variants.filter((variant) => variant.available > 0) ?? []);
 }
 
-export function BuilderConfigurator({ consoles, products }: { consoles: ConsoleModel[]; products: ProductSummary[] }) {
+export function BuilderConfigurator({ consoles, products, preselected }: { consoles: ConsoleModel[]; products: ProductSummary[]; preselected?: string }) {
   const router = useRouter();
-  const [consoleId, setConsoleId] = useState('');
+  const garageSourced = Boolean(preselected && consoles.some((item) => item.id === preselected));
+  const [consoleId, setConsoleId] = useState(() => (garageSourced ? preselected! : ''));
   const [repair, setRepair] = useState('');
   const [selectedProductId, setSelectedProductId] = useState('');
   const [mode, setMode] = useState<'repair' | 'custom'>('repair');
@@ -98,6 +99,7 @@ export function BuilderConfigurator({ consoles, products }: { consoles: ConsoleM
           <button className="button-secondary" type="button" role="tab" aria-selected={mode === 'custom'} onClick={() => setMode('custom')}>02 · Mod / custom</button>
         </div>
         <label className="field"><span>Tu consola</span><select className="select" value={consoleId} onChange={(event) => { setConsoleId(event.target.value); setSelectedProductId(''); setAdded(false); setTemplateSaved(false); }}><option value="">Selecciona un modelo</option>{consoles.map((item) => <option key={item.id} value={item.id}>{item.name} · {item.revision ?? item.platform}</option>)}</select></label>
+        {garageSourced && consoleId ? <p className="notice">Consola precargada desde tu <a className="accent-text" href="/garage">Console Garage</a>. Puedes cambiarla en el selector de arriba.</p> : null}
         {mode === 'repair' ? <>
           <div><span className="mono-label">REPAIR KIT / CONFIGURADOR GUIADO</span><h2 className="section-title">¿Qué necesitas reparar?</h2><p className="muted small">Elige el síntoma para filtrar. Solo se muestran repuestos con compatibilidad confirmada para el modelo exacto.</p></div>
           <div className="choice-grid">{repairs.map((item) => <button className="choice-card" type="button" key={item.id} aria-pressed={repair === item.id} onClick={() => { setRepair(item.id); setSelectedProductId(''); setAdded(false); }}><span className="mono-label">{item.icon} / REPAIR</span><br />{item.title}</button>)}</div>
@@ -113,7 +115,7 @@ export function BuilderConfigurator({ consoles, products }: { consoles: ConsoleM
         <span className="mono-label">{mode === 'repair' ? 'PIEZA SUGERIDA' : 'PLANTILLA DE COLOR'}</span>
         <h2>{selectedConsole?.name ?? 'Tu consola'}</h2>
         {mode === 'repair' ? <>
-          <p className="muted small">{selectedRepair ? `Filtramos repuestos compatibles que coinciden con «${selectedRepair.title}». Sin una receta predefinida, eliges la pieza y la solicitas individualmente.` : selectedConsole ? 'Elige una falla para filtrar las piezas compatibles de la consola.' : 'Selecciona una consola y una falla para revisar piezas compatibles.'}</p>
+          <p className="muted small">{selectedRepair ? `Filtramos repuestos compatibles que coinciden con «${selectedRepair.title}». Sin una receta predefinida, eliges la pieza y la solicitas individualmente.` : selectedConsole ? 'Elige una falla para filtrar las piezas compatibles de la consola.' : <>Selecciona una consola y una falla para revisar piezas compatibles. ¿Ya tienes consolas en tu <a className="accent-text" href="/garage">Console Garage</a>? Puedes precargarlas desde ahí.</>}</p>
           {selectedConsole && selectedRepair ? matching.length ? <div className="kit-items">{matching.slice(0, 3).map((product) => {
             const available = availableOf(product);
             const variant = available[0];

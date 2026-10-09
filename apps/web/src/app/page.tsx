@@ -85,6 +85,32 @@ export default async function HomePage() {
           ))}
         </div>
       </section>
+
+      <section className="page-shell section-tight" aria-labelledby="how-title">
+        <div className="section-heading">
+          <div><span className="eyebrow">04 / Cómo funciona</span><h2 className="section-title" id="how-title">De tu consola a la pieza exacta.</h2></div>
+        </div>
+        <div className="steps-grid">
+          <div className="step-card">
+            <span className="category-num">NJ / 01 · IDENTIFICA</span>
+            <h3>Registra tu consola.</h3>
+            <p className="muted small">El Console Garage valida tu plataforma, modelo y revisión exacta. Sin "debería servir": cada pieza se contrasta con tu modelo concreto.</p>
+            <Link className="text-link" href="/garage">Abrir mi Garage <span aria-hidden="true">↗</span></Link>
+          </div>
+          <div className="step-card">
+            <span className="category-num">NJ / 02 · ENCUENTRA</span>
+            <h3>Elige la falla o filtra.</h3>
+            <p className="muted small">El Builder propone repuestos con compatibilidad confirmada según tu consola o falla; cada ficha muestra su matriz verificada y su stock real.</p>
+            <Link className="text-link" href="/builder">Armar un kit <span aria-hidden="true">↗</span></Link>
+          </div>
+          <div className="step-card">
+            <span className="category-num">NJ / 03 · COORDINA</span>
+            <h3>Pide tu código y coordina.</h3>
+            <p className="muted small">Tu solicitud NJ-… queda registrada y se coordina por WhatsApp. El inventario solo cambia cuando el equipo confirma la venta.</p>
+            <Link className="text-link" href="/cuenta">Seguir un pedido <span aria-hidden="true">↗</span></Link>
+          </div>
+        </div>
+      </section>
     </main>
   );
 }
